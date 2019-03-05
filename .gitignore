@@ -1,0 +1,10 @@
+# pycharm
+.idea
+
+# python
+*.py[cod]
+
+# django
+db.sqlite3
+migrations/
+!migrations/__init__.py
