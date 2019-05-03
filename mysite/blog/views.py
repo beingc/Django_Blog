@@ -1,9 +1,12 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse
+from django.utils.text import slugify
 from .models import Post, Category, Tag
 from comments.forms import CommentForm
 import markdown
+from markdown.extensions.toc import TocExtension
 from django.views.generic import ListView, DetailView
+from django.db.models import Q
 
 
 # Create your views here.
@@ -147,12 +150,13 @@ class PostDetailView(DetailView):
 
     def get_object(self, queryset=None):
         post = super(PostDetailView, self).get_object(queryset=None)
-        post.body = markdown.markdown(post.body,
-                                      extensions=[
-                                          'markdown.extensions.extra',
-                                          'markdown.extensions.codehilite',
-                                          'markdown.extensions.toc',
-                                      ])
+        md = markdown.Markdown(extensions=[
+            'markdown.extensions.extra',
+            'markdown.extensions.codehilite',
+            TocExtension(slugify=slugify),
+        ])
+        post.body = md.convert(post.body)
+        post.toc = md.toc
         return post
 
     def get_context_data(self, **kwargs):
@@ -164,3 +168,13 @@ class PostDetailView(DetailView):
             'comment_list': comment_list
         })
         return context
+
+
+def search(request):
+    q = request.GET.get('q')
+    error_msg = ''
+    if not q:
+        error_msg = '请输入关键词'
+        return render(request, 'blog/index.html', {'error_msg': error_msg})
+    post_list = Post.objects.filter(Q(title__icontains=q) | Q(body__icontains=q))
+    return render(request, 'blog/index.html', {'error_msg': error_msg, 'post_list': post_list})
